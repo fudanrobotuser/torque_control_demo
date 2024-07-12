@@ -19,12 +19,12 @@ find_package(std_msgs REQUIRED)
 
 # Add executable
 add_executable(joint_states_subscriber 
-# src/joint_states_subscriber.cpp 
-src/timer_publisher.cpp
-# src/ecat_data_buffer.c 
-# src/math_algorithm.cpp 
-# src/pid_algorithm.cpp 
-# src/filter_algorithm.cpp
+src/joint_states_subscriber.cpp 
+# src/timer_publisher.cpp
+src/ecat_data_buffer.c 
+src/math_algorithm.cpp 
+src/pid_algorithm.cpp 
+src/filter_algorithm.cpp
 )
 ament_target_dependencies(joint_states_subscriber rclcpp rclcpp_components std_msgs)
 

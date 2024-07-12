@@ -48,7 +48,7 @@ public:
         joint_state_msg_.effort.resize(6);
         std::cout << "asdf 2" << std::endl;
         // Set a timer to publish joint states periodically
-        this->create_wall_timer(std::chrono::milliseconds(2),
+        timer_ = this->create_wall_timer(std::chrono::milliseconds(2),
                                 std::bind(&JointStatesPublisherSubscriber::publish_joint_states, this));
     }
 
