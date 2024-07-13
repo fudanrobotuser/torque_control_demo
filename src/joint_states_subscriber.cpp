@@ -16,9 +16,12 @@ bool dataOk = false;
 int i = 0;
 int target_p[6] = {0, 0, 0, 0, 0, 0};
 double code2rad = 0.00000299605617523193;
-C_PID motor(200.0f, 0.5f, 0.0f, 500.0f, 5.0f, 2.0f, 0.1f); // now
+C_PID motor(700.0f, 0.5f, 0.0f, 500.0f, 5.0f, 2.0f, 0.1f); // now
 C_PID motor_v(200.0f, 0.4f, 0.0f, 500.0f, 5.0f, 2.0f, 0.1f);
 C_PID motor_p(150.0f, 0.3f, 0.0f, 500.0f, 5.0f, 2.0f, 0.1f);
+const double position_threshold = 0.001;  // 位置差的阈值，用于判断静止状态
+double phase = 0.0;       // 初始相位
+
 // C_PID(float Kp, float Ki, float Kd, float UMax, float UiMax, float UdMax, float ts)
 
 //(float Kp, float Ki, float Kd, float UMax, float UiMax, float UdMax, float ts)
@@ -55,7 +58,6 @@ public:
 private:
     void publish_joint_states()
     {
-        std::cout << "asd 3 f" << std::endl;
         memset(&feedback, 0, sizeof(feedback));
         dataOk = edb_pull_fdbk(&feedback);
 
@@ -74,32 +76,68 @@ private:
 
         memset(&new_ref, 0, sizeof(new_ref));
 
-        int tau_ff_5 = 40;
+        int tau_ff_5 = 30;           //单位milli
         // int tau_ff_4 = 50;
-        int FF;
-        std::cout << "start" << std::endl;
-
+        int FF=0;
+        int PP=0;
         // new_ref.motor_ref[5 + P_START].target_torque =  -(joint_state_msg_.position[5] - target_p[5])* code2rad * 100 + tau_ff_5;
         // new_ref.motor_ref[4 + P_START].target_torque =  -(joint_state_msg_.position[4] - target_p[4])* code2rad * 150 + tau_ff_4;
         // new_ref.motor_ref[4 + P_START].target_torque = 0;
-        std::cout << "asdf 4" << std::endl;
+        motor.fpDes = -3.14/6;                 //设置目标位置，单位rad
 
-        motor.fpFB = joint_state_msg_.position[5] * code2rad;
-        motor.CalPID();
+        motor.fpDes = 3.14/6 * sin(2 * M_PI * phase);
+        phase += 0.001; // 适当调整步进以控制变化速度
+
+        motor.fpFB = joint_state_msg_.position[5] * code2rad;     //位置反馈，单位rad
+        motor.CalPID();              //PID算法 ，输入均为rad
         // motor_v.Des = motor_p.fpU;
-        if (joint_state_msg_.velocity[5] > 0)
-        {
-            FF = tau_ff_5;
-        }
-        else
-        {
-            FF = -tau_ff_5;
-        }
+
+        // if (fabs(motor.fpDes - motor.fpFB) > position_threshold) 
+        // {
+        //     if (motor.fpDes > motor.fpFB) 
+        //     {
+        //         FF = tau_ff_5;  // 目标位置大于当前位置
+        //     } 
+        //     else 
+        //     {
+        //         FF = -tau_ff_5-20;   // 目标位置小于当前位置
+        //         std::cout <<"up" << std::endl;
+        //     }
+        // } 
+        // else 
+        // {
+        //     FF = 0;  // 静止时，无摩擦力矩前馈
+        // }
+
+        // if (fabs(motor.fpFB - PP) > 0.01) 
+        // {
+        //     if (motor.fpFB > PP) 
+        //     {
+        //         FF = tau_ff_5;  // 目标位置大于当前位置
+        //     } 
+        //     else 
+        //     {
+        //         FF = -tau_ff_5-10;   // 目标位置小于当前位置
+        //         std::cout <<"up" << std::endl;
+
+        //     }
+        // } 
+        // else 
+        // {
+        //     FF = 0;  // 静止时，无摩擦力矩前馈
+        // }
+        // PP=motor.fpFB;
+        
 
         new_ref.motor_ref[5 + P_START].target_torque = motor.fpU + FF; // 命令
         // new_ref.motor_ref[5 + P_START].target_torque = 100 ;
 
         std::cout << new_ref.motor_ref[5 + P_START].target_torque << std::endl;
+        std::cout <<"motor.fpFB"<< motor.fpFB << std::endl;
+        std::cout <<"motor.fpDes"<< motor.fpDes << std::endl;
+
+        //7_13 ---------------------------------------knee
+
 
         // joint_state_msg_.position[5]
         // new_ref.motor_ref[5 + P_START].target_torque = 100;
@@ -146,9 +184,8 @@ int main(int argc, char *argv[])
 
     edb_init(appPtr, SHM_SIZE, false);
 
-    motor.fpUMax = 500;
-    motor.fpDes = 0 * code2rad;
-    // motor.fpEMin = 2;
+
+
 
     rclcpp::init(argc, argv);
     rclcpp::spin(std::make_shared<JointStatesPublisherSubscriber>());
